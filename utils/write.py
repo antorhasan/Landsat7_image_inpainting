@@ -58,10 +58,17 @@ trainM_list = glob.glob(trainM)
 shuffle(trainY_list)
 shuffle(trainM_list)
 
-train_Y = trainY_list[0:19488]
-train_M = trainM_list[0:19488]
-val_Y = trainY_list[19488:21376]
-val_M = trainM_list[19488:21376]
+# train_Y = trainY_list[0:19488]
+# train_M = trainM_list[0:19488]
+# val_Y = trainY_list[19488:21376]
+# val_M = trainM_list[19488:21376]
 
-createDataRecord("/media/antor/Files/ML/tfrecord/slc_inpainting/train.tfrecords", train_Y, train_M)
-createDataRecord("/media/antor/Files/ML/tfrecord/slc_inpainting/val.tfrecords", val_Y, val_M)
+train_Y = trainY_list[0:10]
+train_M = trainM_list[0:10]
+val_Y = trainY_list[10:20]
+val_M = trainM_list[10:20]
+
+
+
+createDataRecord("/media/antor/Files/ML/tfrecord/slc_inpainting/train_1.tfrecords", train_Y, train_M)
+createDataRecord("/media/antor/Files/ML/tfrecord/slc_inpainting/val_1.tfrecords", val_Y, val_M)
