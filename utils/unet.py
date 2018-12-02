@@ -12,6 +12,9 @@ root_logdir = "tf_logs"
 logdir = "{}/run-{}/".format(root_logdir, now)
 root_logdir_m = "tf_models"
 logdir_m = "{}/run-{}/".format(root_logdir_m, now)
+root_logdir_v = "tf_vals"
+logdir_v = "{}/run-{}/".format(root_logdir_v, now)
+
 
 def _parse_function(example_proto):
 
@@ -185,7 +188,6 @@ def model(learning_rate,num_epochs,mini_size,break_t,break_v,pt_out,hole_pera,va
     #filenames = "/media/antor/Files/ML/Papers/train_mfix.tfrecords"
     #filenames = tf.placeholder(tf.string)
     #is_training = tf.placeholder(tf.bool)
-
     dataset = tf.data.TFRecordDataset("/media/antor/Files/ML/tfrecord/slc_inpainting/train_unet.tfrecords")
     dataset = dataset.map(_parse_function)
     dataset = dataset.shuffle(3000)
@@ -217,6 +219,9 @@ def model(learning_rate,num_epochs,mini_size,break_t,break_v,pt_out,hole_pera,va
 
     cost = compute_cost(pixel_gt=pix_gt,pixel_pre=pixel_out)
 
+    #cost_v = tf.summary.scalar("loss_val", epoch_cost_v)
+
+    #cost_v = tf.summary.scalar('val_loss',cost)
     #global_step = tf.Variable(0, trainable=False)
     #learning_rate_d = tf.train.exponential_decay(learning_rate, global_step,decay_s,decay_rate, staircase=False)
     #tf.summary.scalar('learning_rate_de',learning_rate_d)
@@ -226,8 +231,11 @@ def model(learning_rate,num_epochs,mini_size,break_t,break_v,pt_out,hole_pera,va
 
     num_mini = int(m/mini_size)          #must keep this fully divided and num_mini output as int pretty sure it doesn't need
                                     #to be an int
-    merge_sum = tf.summary.merge_all()
+    #merge_sum = tf.summary.merge_all()
+    #merge_sum = tf.summary.merge(tf.get_collection(tf.GraphKeys.SUMMARIES, scope))
+
     file_writer = tf.summary.FileWriter(logdir, tf.get_default_graph())    #for tensorboard
+    file_writer_v = tf.summary.FileWriter(logdir_v, tf.get_default_graph())    #for tensorboard
 
     saver = tf.train.Saver()    #for model saving
     #builder = tf.saved_model.builder.SavedModelBuilder('./SavedModel/')
@@ -252,22 +260,23 @@ def model(learning_rate,num_epochs,mini_size,break_t,break_v,pt_out,hole_pera,va
     num_mini_val = int(m_val_size/mini_size)
     while True:
         try:
-
             _ , temp_cost = sess.run([optimizer,cost], feed_dict={handle : training_handle})
 
             #mini_cost += temp_cost/num_mini
             mini_cost += temp_cost/pt_out
             epoch_cost += temp_cost/num_mini
 
-            # if counter%50 == 0:
-            #     s = sess.run(merge_sum)
-            #     file_writer.add_summary(s,counter)
+            if counter%50 == 0:
+                merge_sum = tf.summary.merge_all()
+                #merge_sum = tf.summary.merge(tf.get_collection(tf.GraphKeys.SUMMARIES, train_scope))
+                s = sess.run(merge_sum,feed_dict={handle : training_handle})
+                file_writer.add_summary(s,counter)
             if counter%pt_out==0:
                 print("mini batch cost of batch " + str(counter) + " is : " + str(mini_cost))
                 mini_cost =0.0
 
 
-            if counter%200==0:
+            if counter%num_mini==0:
                 print("cost after epoch " + str(counter/num_mini) + ": " + str(epoch_cost))
 
                 #saver.save(sess,logdir_m+"my_model.ckpt")
@@ -288,12 +297,24 @@ def model(learning_rate,num_epochs,mini_size,break_t,break_v,pt_out,hole_pera,va
 
                         if counter_v%num_mini_val==0:
                             print("val cost at epoch  " + str(epoch) + ": " + str(epoch_cost_v))
+                            merge_sum_v = tf.summary.merge_all()
+                            #merge_sum = tf.summary.merge(tf.get_collection(tf.GraphKeys.SUMMARIES, train_scope))
+                            s_v = sess.run(merge_sum_v,feed_dict={handle : validation_handle})
+                            file_writer_v.add_summary(s_v,counter)
+
+                            # with tf.name_scope("cost_val_epoch") as scope:
+                            #     cost_v = tf.summary.scalar("loss_val", epoch_cost_v)
+                            #
+                            # merge_val = tf.summary.merge([cost_v])
+                            # s_v = sess.run(merge_val,feed_dict={handle : validation_handle})
+                            # file_writer.add_summary(s_v,counter)
+
                             epoch_cost_v = 0.0
                             #s_v = sess.run(merge_sum, feed_dict={handle : validation_handle, decision:False})
                             #file_writer_v.add_summary(s_v,counter)
                             #file_writer_v.flush()
-                            s = sess.run(merge_sum)
-                            file_writer.add_summary(s,counter)
+                            #s = sess.run(merge_sum)
+                            #file_writer.add_summary(s,counter)
 
                             break
 
@@ -327,5 +348,5 @@ def model(learning_rate,num_epochs,mini_size,break_t,break_v,pt_out,hole_pera,va
     sess.close()
 
 
-model(learning_rate=.00960955,num_epochs=2,mini_size=16,break_t=7000,break_v=700,pt_out=20,hole_pera=6.0,
+model(learning_rate=.009,num_epochs=3,mini_size=16,break_t=7000,break_v=700,pt_out=25,hole_pera=6.0,
      valid_pera=1.0,decay_s=538.3,decay_rate=.96,fil_num=32)
