@@ -145,7 +145,7 @@ def forward_prop( pixel):
         pixel_out = conv_block(near_pixel1,kernel_size=[1,1],filter_numbers=1,stride=[1,1,1,1],nonlinearity="none",conv_t="conv")
 
 
-    return pixel_out
+    return pixel_out,p_out3,p_out5,p_out7
 
 
 
@@ -204,16 +204,16 @@ def model(learning_rate,num_epochs,mini_size,break_t,break_v,pt_out,hole_pera,va
 
     iterator = tf.data.Iterator.from_string_handle(handle, dataset.output_types)
 
-    pix_gt = iterator.get_next()
+    pix_gt1 = iterator.get_next()
 
     training_iterator = dataset.make_initializable_iterator()
     validation_iterator = dataset_v.make_initializable_iterator()
 
-    pix_gt = tf.reshape(pix_gt,[mini_size,256,256,1])
+    pix_gt = tf.reshape(pix_gt1,[mini_size,256,256,1])
 
     tf.summary.image("input_Y",pix_gt,3)
 
-    pixel_out = forward_prop(pixel=pix_gt)
+    pixel_out,out1,out2,out3 = forward_prop(pixel=pix_gt)
 
     tf.summary.image("output_Y",pixel_out,3)
 
@@ -237,7 +237,7 @@ def model(learning_rate,num_epochs,mini_size,break_t,break_v,pt_out,hole_pera,va
     file_writer = tf.summary.FileWriter(logdir, tf.get_default_graph())    #for tensorboard
     file_writer_v = tf.summary.FileWriter(logdir_v, tf.get_default_graph())    #for tensorboard
 
-    saver = tf.train.Saver()    #for model saving
+    #saver = tf.train.Saver()    #for model saving
     #builder = tf.saved_model.builder.SavedModelBuilder('./SavedModel/')
 
     init = tf.global_variables_initializer()
@@ -340,6 +340,15 @@ def model(learning_rate,num_epochs,mini_size,break_t,break_v,pt_out,hole_pera,va
 
             counter = counter + 1
         except tf.errors.OutOfRangeError:
+            builder = tf.saved_model.builder.SavedModelBuilder(logdir_m)
+            inputs = {'input_x': tf.saved_model.utils.build_tensor_info(pix_gt)}
+            outputs = {'output1' : tf.saved_model.utils.build_tensor_info(out1),
+                        'output2' : tf.saved_model.utils.build_tensor_info(out2),
+                        'output3' : tf.saved_model.utils.build_tensor_info(out3)}
+            signature = tf.saved_model.signature_def_utils.build_signature_def(inputs, outputs, 'test_sig_name')
+            builder.add_meta_graph_and_variables(sess, ['test_saved_model'], {'test_signature':signature})
+            builder.save()
+
             break
 
                #for tensorboard
@@ -348,19 +357,19 @@ def model(learning_rate,num_epochs,mini_size,break_t,break_v,pt_out,hole_pera,va
     sess.close()
 
 
-# model(learning_rate=.00,num_epochs=3,mini_size=16,break_t=7000,break_v=700,pt_out=25,hole_pera=6.0,
-#      valid_pera=1.0,decay_s=538.3,decay_rate=.96,fil_num=32)
+model(learning_rate=.0005,num_epochs=1,mini_size=16,break_t=7000,break_v=700,pt_out=25,hole_pera=6.0,
+     valid_pera=1.0,decay_s=538.3,decay_rate=.96,fil_num=32)
 
-from tensorflow.python.framework import ops
-f = np.random.uniform(np.log10(.00005),np.log10(.01),6)
-print(f)
-i = 10**f
-
-print(i)
-
-for l in i:    #for k in b:
-    print(l)
-    model(learning_rate=l,num_epochs=1,mini_size=16,break_t=7000,break_v=700,pt_out=25,hole_pera=6.0,
-         valid_pera=1.0,decay_s=538.3,decay_rate=.96,fil_num=32)
-
-    ops.reset_default_graph()
+# from tensorflow.python.framework import ops
+# f = np.random.uniform(np.log10(.00005),np.log10(.01),6)
+# print(f)
+# i = 10**f
+#
+# print(i)
+#
+# for l in i:    #for k in b:
+#     print(l)
+#     model(learning_rate=l,num_epochs=1,mini_size=16,break_t=7000,break_v=700,pt_out=25,hole_pera=6.0,
+#          valid_pera=1.0,decay_s=538.3,decay_rate=.96,fil_num=32)
+#
+#     ops.reset_default_graph()
