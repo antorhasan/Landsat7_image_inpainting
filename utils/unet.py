@@ -284,7 +284,7 @@ def model(learning_rate,num_epochs,mini_size,break_t,break_v,pt_out,hole_pera,va
                 # file_writer.add_summary(s,counter)
                 #file_writer_t.add_summary(s_t,counter)
                 #file_writer_t.flush()
-                counter_v    = 0
+                counter_v    = 1
                 epoch_cost_v = 0.0
                 while True:
                     try:
@@ -293,7 +293,7 @@ def model(learning_rate,num_epochs,mini_size,break_t,break_v,pt_out,hole_pera,va
                         temp_cost_v = sess.run(cost,feed_dict={handle : validation_handle})
                         epoch_cost_v += temp_cost_v/num_mini_val
 
-                        counter_v+=1
+
 
                         if counter_v%num_mini_val==0:
                             print("val cost at epoch  " + str(epoch) + ": " + str(epoch_cost_v))
@@ -317,7 +317,7 @@ def model(learning_rate,num_epochs,mini_size,break_t,break_v,pt_out,hole_pera,va
                             #file_writer.add_summary(s,counter)
 
                             break
-
+                        counter_v+=1
                     except tf.errors.OutOfRangeError:
                         #tf.summary.scalar('dev_epoch_cost',epoch_cost_v)
                         break
@@ -348,5 +348,19 @@ def model(learning_rate,num_epochs,mini_size,break_t,break_v,pt_out,hole_pera,va
     sess.close()
 
 
-model(learning_rate=.009,num_epochs=3,mini_size=16,break_t=7000,break_v=700,pt_out=25,hole_pera=6.0,
-     valid_pera=1.0,decay_s=538.3,decay_rate=.96,fil_num=32)
+# model(learning_rate=.00,num_epochs=3,mini_size=16,break_t=7000,break_v=700,pt_out=25,hole_pera=6.0,
+#      valid_pera=1.0,decay_s=538.3,decay_rate=.96,fil_num=32)
+
+from tensorflow.python.framework import ops
+f = np.random.uniform(np.log10(.00005),np.log10(.01),6)
+print(f)
+i = 10**f
+
+print(i)
+
+for l in i:    #for k in b:
+    print(l)
+    model(learning_rate=l,num_epochs=1,mini_size=16,break_t=7000,break_v=700,pt_out=25,hole_pera=6.0,
+         valid_pera=1.0,decay_s=538.3,decay_rate=.96,fil_num=32)
+
+    ops.reset_default_graph()
