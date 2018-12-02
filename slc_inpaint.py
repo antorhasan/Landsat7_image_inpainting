@@ -313,9 +313,10 @@ def model(learning_rate,num_epochs,mini_size,break_t,break_v,pt_out,hole_pera,va
 
     dataset = tf.data.TFRecordDataset(filenames)
     dataset = dataset.map(_parse_function)
-    dataset = dataset.repeat(num_epochs)
     dataset = dataset.shuffle(3000)
     dataset = dataset.batch(mini_size)
+    dataset = dataset.repeat(num_epochs)
+
     iterator = dataset.make_initializable_iterator(shared_name="iter")
     #tf.add_to_collection('iterator', iterator)
     pix_gt, mask_in = iterator.get_next()
