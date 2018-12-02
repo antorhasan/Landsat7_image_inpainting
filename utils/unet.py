@@ -1,8 +1,6 @@
 import numpy as np
 import tensorflow as tf
-#import gc
 import cv2
-#import matplotlib.pyplot as plt
 from tensorflow.python.framework import ops
 from os import listdir
 from os.path import isfile, join
@@ -17,157 +15,62 @@ logdir_m = "{}/run-{}/".format(root_logdir_m, now)
 
 def _parse_function(example_proto):
 
-
-
     features = {
-                "image_y": tf.FixedLenFeature((), tf.string ),
-                "image_m": tf.FixedLenFeature((), tf.string )
-                #"image_x": tf.FixedLenFeature((), tf.string )
+                "image_y": tf.FixedLenFeature((), tf.string )
                 }
 
     parsed_features = tf.parse_single_example(example_proto, features)
 
     image_y = tf.decode_raw(parsed_features["image_y"],  tf.float64)
-    image_m = tf.decode_raw(parsed_features["image_m"],  tf.float64)
 
     image_y = tf.reshape(image_y, [256,256,1])
-    image_m = tf.reshape(image_m, [256,256,1])
-    #image_x = tf.decode_raw(parsed_features["image_x"],  tf.float64)
-    #tf.summary.image("64_Y",image_y,3)
-    #tf.summary.image("64_M",image_m,3)
-
-    #denoise = cv2.fastNlMeansDenoising(image_y, h=24, templateWindowSize=7, searchWindowSize=21)
 
     image_y = tf.cast(image_y,dtype=tf.float32)
-    image_m = tf.cast(image_m,dtype=tf.float32)
-    #image_x = tf.cast(image_x,dtype=tf.float32)
-    #tf.summary.image("32_Y",image_y,3)
-    #tf.summary.image("32_M",image_m,3)
-    #image_y = tf.image.total_variation(image_y)
 
-    #image_y = tf.reshape(image_y, [512,512,1])
-    #image_m = tf.reshape(image_m, [512,512,1])
-    #image_x = tf.reshape(image_x, [512,512,1])
-
-    return image_y,image_m
-    #return denoise,image_m
-
-def batch_norm(inputs, is_training, decay=.5, epsilon=0.00000001):
-    with tf.name_scope("batch_norm") as scope:
+    return image_y
 
 
-        scale = tf.get_variable("scale_BN", (inputs.get_shape()[1:4]), initializer=tf.ones_initializer())
-        beta = tf.get_variable("beta_BN", (inputs.get_shape()[1:4]), initializer=tf.zeros_initializer())
-        pop_mean = tf.get_variable("pop_mean", (inputs.get_shape()[1:4]), initializer=tf.zeros_initializer(), trainable=False)
-        pop_var = tf.get_variable("pop_var", (inputs.get_shape()[1:4]), initializer=tf.ones_initializer(), trainable=False)
-
-        mean = tf.cond(tf.cast(is_training,tf.bool), lambda: tf.nn.moments(inputs,[0])[0], lambda: tf.multiply(tf.ones(inputs.get_shape()[1:4]), pop_mean))
-        var = tf.cond(tf.cast(is_training,tf.bool), lambda: tf.nn.moments(inputs,[0])[1], lambda: tf.multiply(tf.ones(inputs.get_shape()[-1]), pop_var))
-        train_mean = tf.cond(tf.cast(is_training,tf.bool), lambda:tf.assign(pop_mean, pop_mean*decay+mean*(1-decay)),lambda:tf.zeros(1))
-        train_var = tf.cond(tf.cast(is_training,tf.bool),lambda:tf.assign(pop_var, pop_var*decay+var*(1-decay)),lambda:tf.zeros(1))
-
-        with tf.control_dependencies([train_mean, train_var]):
-            return tf.nn.batch_normalization(inputs, mean, var, beta, scale, epsilon)
-
-
-def partial_conv(pixel, mask,is_training, kernel_size, filter_numbers, stride, batch_n, nonlinearity, trans):
-
-    with tf.name_scope("part_conv") as scope:
+def conv_block(pixel,kernel_size,filter_numbers,stride,nonlinearity,conv_t):
+    with tf.name_scope("conv") as scope:
         kernel_h = kernel_size[0]
         kernel_w = kernel_size[1]
-        if trans==True:
-            kernel_d = filter_numbers
-            kernel_o = pixel.get_shape().as_list()[3]
-        elif trans==False:
-            kernel_d = pixel.get_shape().as_list()[3]
-            kernel_o = filter_numbers
-        elif trans=="same_pad":
-            #kernel_d = pixel.get_shape().as_list()[3]
-            #kernel_o = filter_numbers
-            kernel_d = filter_numbers
-            kernel_o = pixel.get_shape().as_list()[3]
-        elif trans=="one":
-            kernel_d = pixel.get_shape().as_list()[3]
-            kernel_o = filter_numbers
 
+        if conv_t== "conv":
+            kernel_d = pixel.get_shape().as_list()[3]
+            kernel_o = filter_numbers
+        if conv_t == "dconv":
+            kernel_d = filter_numbers
+            kernel_o = pixel.get_shape().as_list()[3]
 
         W = tf.get_variable('Weights', (kernel_h, kernel_w, kernel_d, kernel_o),
                             initializer=tf.contrib.layers.variance_scaling_initializer())
-        #tf.add_to_collection('weights', W)
-        #print(W.name)
-        W1 = tf.ones((kernel_h, kernel_w, kernel_d, kernel_o), name='Weights_mask')
-
-        Z1 = tf.multiply(pixel, mask, name="element_op")
-
-        if trans==True:
-            #need to fix for variable last batch size. The last mini_batch will be of different size most of the time
+        if conv_t == "conv":
+            conv_out = tf.nn.conv2d(pixel, W, strides=stride, padding="VALID", name="conv")
+        if conv_t == "dconv":
             out_shape_list = pixel.get_shape().as_list()
-            out_shape_list[1] = pixel.get_shape().as_list()[1] + 2
-            out_shape_list[2] = pixel.get_shape().as_list()[2] + 2
+            out_shape_list[1] = ((pixel.get_shape().as_list()[1] + 1) * 2)-1
+            out_shape_list[2] = ((pixel.get_shape().as_list()[2] + 1) * 2)-1
             out_shape_list[3] = filter_numbers
             out_shape = tf.constant(out_shape_list)
-            #out_shape = tf.TensorShape(out_shape_list)
-            #out_shape = tf.cast(out_shape,tf.int32)
-            prime_conv = tf.nn.conv2d_transpose(Z1, W,out_shape, strides=stride, padding="VALID", name="prime_conv")
-            sec_conv = tf.nn.conv2d_transpose(mask, W1,output_shape=tf.TensorShape(out_shape_list), strides=stride, padding="VALID", name="sec_conv")
-        elif trans==False:
-            prime_conv = tf.nn.conv2d(Z1, W, strides=stride, padding="VALID", name="prime_conv")
-            sec_conv = tf.nn.conv2d(mask, W1, strides=stride, padding="VALID", name="sec_conv")
-        elif trans=="same_pad":
-            #prime_conv = tf.nn.conv2d(Z1, W, strides=stride, padding="SAME", name="prime_conv")
-            #sec_conv = tf.nn.conv2d(mask, W1, strides=stride, padding="SAME", name="sec_conv")
-            out_shape_list = pixel.get_shape().as_list()
-            out_shape_list[1] = pixel.get_shape().as_list()[1]
-            out_shape_list[2] = pixel.get_shape().as_list()[2]
-            out_shape_list[3] = filter_numbers
-            out_shape = tf.constant(out_shape_list)
-            prime_conv = tf.nn.conv2d_transpose(Z1, W,out_shape, strides=stride, padding="SAME", name="prime_conv")
-            sec_conv = tf.nn.conv2d_transpose(mask, W1,output_shape=tf.TensorShape(out_shape_list), strides=stride, padding="SAME", name="sec_conv")
-        elif trans=="one":
-            prime_conv = tf.nn.conv2d(Z1, W, strides=stride, padding="VALID", name="prime_conv")
-            sec_conv = tf.nn.conv2d(mask, W1, strides=stride, padding="VALID", name="sec_conv")
+            conv_out = tf.nn.conv2d_transpose(pixel,W,out_shape,stride,padding="VALID",name="dconv")
 
-
-        inver_sum = tf.divide(tf.constant(1.0), sec_conv)
-        clean_sum = tf.where(tf.is_inf(inver_sum), tf.zeros_like(inver_sum), inver_sum)
-
-        weighted_pixel = tf.multiply(prime_conv, clean_sum, name="multi_inver_sum")
-        up_mask = tf.where(tf.not_equal(sec_conv, tf.constant(0.0)),tf.ones_like(sec_conv),sec_conv)
-
-        #normalized_out = tf.cond(tf.cast(batch_n,tf.bool), lambda:batch_norm(weighted_pixel, tf.cast(is_training,tf.bool)), lambda:weighted_pixel)
-        #B = tf.get_variable('Biases',(1,weighted_pixel.get_shape()[1],weighted_pixel.get_shape()[2],weighted_pixel.get_shape()[3]),
-        #                    initializer=tf.constant_initializer(.01))
-        B = tf.get_variable('Biases',(1,1,1,prime_conv.get_shape()[3]),
+        B = tf.get_variable('Biases',(1,1,1,conv_out.get_shape()[3]),
                             initializer=tf.constant_initializer(.01))
 
-        normalized_out = tf.add(weighted_pixel,B)
-        #normalized_out = weighted_pixel
+        normalized_out = tf.add(conv_out,B)
 
         if nonlinearity=="relu":
             up_pixel = tf.nn.relu(normalized_out, name="relu")
         elif nonlinearity=="leaky_relu":
             up_pixel = tf.nn.leaky_relu(normalized_out, name="leaky_relu")
         elif nonlinearity=="none":
-            #up_pixel = normalized_out
-            #up_pixel = tf.sigmoid(normalized_out)
-            #up_pixel = tf.nn.relu(normalized_out, name="relu")
-            up_pixel = tf.nn.tanh(normalized_out, name="tanh")
-        elif nonlinearity=="elu":
-            up_pixel = tf.keras.activations.elu(normalized_out)
+            up_pixel = tf.nn.sigmoid(normalized_out, name="sigmoid")
 
         tf.summary.histogram("weights", W)
         tf.summary.histogram("biases", B)
         tf.summary.histogram("activations", up_pixel)
 
-        return up_pixel, up_mask
-
-
-
-def place_holders(mini_size,height, width, channels):
-    #X = tf.placeholder(tf.float32, shape=(mini_size, height, width, channels))
-    Y = tf.placeholder(tf.float32, shape=(mini_size, height, width, channels))
-    M = tf.placeholder(tf.float32, shape=(mini_size, height, width, channels))
-    return M ,Y
+        return up_pixel
 
 
 def near_up_sampling(pixel, mask, output_size):
@@ -193,9 +96,6 @@ def decoding_layer(pixel_in,mask_in,is_training, output_size_in, pconv_pixel1, p
 def forward_prop(is_training, pixel, mask):
     non_lin = "relu"
 
-#     with tf.variable_scope("PConv1") as scope:
-#         p_out1,m_out1 = partial_conv(pixel,mask,is_training,kernel_size=[3,3],filter_numbers=64,stride=[1,2,2,1],
-#                                     batch_n=False,nonlinearity="relu",trans=False)
     with tf.variable_scope("PConv1") as scope:
         p_out2,m_out2 = partial_conv(pixel,mask,is_training,kernel_size=[3,3],filter_numbers=4,stride=[1,2,2,1],
                                     batch_n=True,nonlinearity=non_lin,trans=False)
@@ -241,17 +141,6 @@ def forward_prop(is_training, pixel, mask):
         p_out14,m_out14 = decoding_layer(p_out13,m_out13,is_training,(p_out2.get_shape().as_list()[1],p_out2.get_shape().as_list()[2]),
                                         p_out2,m_out2,filter_numbers1=4)
 
-#     with tf.variable_scope("decoding15") as scope:
-#         p_out15,m_out15 = decoding_layer(p_out14,m_out14,is_training,(p_out1.get_shape().as_list()[1],p_out1.get_shape().as_list()[2]),
-#                                         p_out1,m_out1,filter_numbers1=64)
-
-    #with tf.variable_scope("decoding16") as scope:
-    #    p_out16,m_out16 = decoding_layer(p_out15,m_out15,is_training,(pixel.get_shape().as_list()[1],pixel.get_shape().as_list()[2]),
-    #                                    pixel,mask,filter_numbers1=1)
-
-
-
-
     with tf.variable_scope("decoding14") as scope:
         near_pixel1,near_mask1 = near_up_sampling(p_out14,m_out14,(pixel.get_shape().as_list()[1],pixel.get_shape().as_list()[2]))
         pixel_hole = tf.multiply(pixel, mask, name="multiply_mask")
@@ -270,13 +159,6 @@ def compute_cost(pixel_gt,mask_gt,pixel_pre,hole_pera,valid_pera):
         loss_hole = tf.losses.absolute_difference(tf.multiply(pixel_gt,(1-mask_gt)),tf.multiply(pixel_pre,(1-mask_gt)), weights=1.0,
                                                     reduction=tf.losses.Reduction.SUM_BY_NONZERO_WEIGHTS)
 
-        #loss_hole = loss_hole * loss_hole
-        #loss_valid = loss_valid * loss_valid
-        #loss_valid = tf.losses.mean_squared_error(tf.multiply(pixel_gt,mask_gt),tf.multiply(pixel_pre,mask_gt))
-        #loss_hole = tf.losses.mean_squared_error(tf.multiply(pixel_gt,(1-mask_gt)),tf.multiply(pixel_pre,(1-mask_gt)))
-
-        #total_loss = (tf.multiply(valid_pera,loss_valid) + tf.multiply(hole_pera,loss_hole))/(hole_pera+valid_pera)
-        #total_loss = (loss_valid + tf.multiply(hole_pera,loss_hole))/(hole_pera)
         total_loss = (valid_pera*loss_valid + hole_pera*loss_hole)/(hole_pera+valid_pera)
 
         tf.summary.scalar('loss',total_loss)
@@ -453,51 +335,3 @@ def model(learning_rate,num_epochs,mini_size,break_t,break_v,pt_out,hole_pera,va
     #saver.save(sess,logdir_m+"my_model.ckpt")
 
     sess.close()
-
-
-# from tensorflow.python.framework import ops
-#
-# f = np.random.uniform(-5,0,6)
-# i = 10**f
-# #print(f)
-# print(i)
-# b = [2,4,8,16]
-# for j in i:
-#     for k in b:
-#         print(j,k)
-#         model(learning_rate=j,num_epochs=1,mini_size=k,break_t=1500,break_v=150,pt_out=20,hole_pera=6.0,valid_pera=1.0)
-#         ops.reset_default_graph()
-
-
-#i=.05
-# from tensorflow.python.framework import ops
-# #import random
-# h = np.random.randint(3,5,size=4)
-# #v = np.random.randint(1,15,size=6)
-# #random.shuffle(h)
-# #random.shuffle(v)
-#
-# f = np.random.uniform(np.log10(.7),np.log10(.98),10)
-# c = np.random.uniform(np.log10(.0001),np.log10(.01),3)
-#
-# #f = np.random.uniform(3,5,4)
-# #f = [100,1000,50000,500]
-# i = 10**f
-# j = 10**c
-# v = [8,12,16]
-# #i= [.07,.01,.007,.099999,.001]
-# #i = np.random.uniform(.01039,.04,5)
-# #print(i)
-# print(v)
-#
-# for l in v:
-#
-#     #print(k)
-#     print(l)
-#
-#     model(learning_rate=.00960955,num_epochs=2,mini_size=l,break_t=7000,break_v=700,pt_out=20,hole_pera=6.0,
-#       valid_pera=1.0,decay_s=538.3,decay_rate=.96,fil_num=32)
-#     ops.reset_default_graph()
-
-model(learning_rate=.00960955,num_epochs=1,mini_size=16,break_t=7000,break_v=700,pt_out=20,hole_pera=6.0,
-     valid_pera=1.0,decay_s=538.3,decay_rate=.96,fil_num=32)
