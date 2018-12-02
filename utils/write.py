@@ -1,5 +1,5 @@
 
-from random import shuffle
+import random
 import glob
 import sys
 import cv2
@@ -12,6 +12,7 @@ def _bytes_feature(value):
 def _int64_feature(value):
     return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
+mean = np.load("/media/antor/Files/main_projects/gitlab/Landsat7_image_inpainting/train_mean.npy")
 
 def createDataRecord(out_filename, addrs_y, addrs_m):
     writer = tf.python_io.TFRecordWriter(out_filename)
@@ -27,7 +28,9 @@ def createDataRecord(out_filename, addrs_y, addrs_m):
 
         last_y = np.reshape(img_y, (256,256,1))
         last_y = last_y/255
+        last_y = last_y-mean
 
+        #print(last_y)
         last_m = np.reshape(img_m,(256,256,1))
         last_m = np.where(last_m>230,1,0)
         last_m = last_m.astype(float)
@@ -55,20 +58,22 @@ trainY_list = glob.glob(trainY)
 trainM = "/media/antor/Files/ML/Papers/slc_inpainting/Data/last_mk/*.jpg"
 trainM_list = glob.glob(trainM)
 
-shuffle(trainY_list)
-shuffle(trainM_list)
+random.seed(3)
+random.shuffle(trainY_list)
+random.seed(3)
+random.shuffle(trainM_list)
 
-# train_Y = trainY_list[0:19488]
-# train_M = trainM_list[0:19488]
-# val_Y = trainY_list[19488:21376]
-# val_M = trainM_list[19488:21376]
+train_Y = trainY_list[0:19488]
+train_M = trainM_list[0:19488]
+val_Y = trainY_list[19488:21376]
+val_M = trainM_list[19488:21376]
 
-train_Y = trainY_list[0:10]
-train_M = trainM_list[0:10]
-val_Y = trainY_list[10:20]
-val_M = trainM_list[10:20]
+# train_Y = trainY_list[0:10]
+# train_M = trainM_list[0:10]
+# val_Y = trainY_list[10:20]
+# val_M = trainM_list[10:20]
 
 
 
-createDataRecord("/media/antor/Files/ML/tfrecord/slc_inpainting/train_1.tfrecords", train_Y, train_M)
-createDataRecord("/media/antor/Files/ML/tfrecord/slc_inpainting/val_1.tfrecords", val_Y, val_M)
+createDataRecord("/media/antor/Files/ML/tfrecord/slc_inpainting/train.tfrecords", train_Y, train_M)
+createDataRecord("/media/antor/Files/ML/tfrecord/slc_inpainting/val.tfrecords", val_Y, val_M)

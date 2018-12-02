@@ -26,7 +26,7 @@ for i in range(len(trainY_list)):
     else:
         add_mean += img_y/len(trainY_list)
 
-add_mean = np.expand_dims(add_mean, axis=0)
+#add_mean = np.expand_dims(add_mean, axis=0)
 print(add_mean)
 print(add_mean.shape)
 np.save("/media/antor/Files/main_projects/gitlab/Landsat7_image_inpainting/train_mean.npy", add_mean)
