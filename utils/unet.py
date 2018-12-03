@@ -198,16 +198,17 @@ def model(learning_rate,num_epochs,mini_size,break_t,break_v,pt_out,hole_pera,va
     dataset_v = dataset_v.map(_parse_function)
     dataset_v = dataset_v.batch(mini_size)
     dataset_v = dataset_v.repeat(num_epochs)
-    #iterator = dataset.make_initializable_iterator(shared_name="iter")
+    iterator = dataset.make_initializable_iterator()
+    # saveable_obj = tf.data.experimental.make_saveable_from_iterator(iterator)
     #tf.add_to_collection('iterator', iterator)
-    handle = tf.placeholder(tf.string)
+    #handle = tf.placeholder(tf.string)
 
-    iterator = tf.data.Iterator.from_string_handle(handle, dataset.output_types)
+    # iterator = tf.data.Iterator.from_string_handle(handle, dataset.output_types)
 
     pix_gt1 = iterator.get_next()
 
-    training_iterator = dataset.make_initializable_iterator()
-    validation_iterator = dataset_v.make_initializable_iterator()
+    # training_iterator = dataset.make_initializable_iterator()
+    # validation_iterator = dataset_v.make_initializable_iterator()
 
     pix_gt = tf.reshape(pix_gt1,[mini_size,256,256,1])
 
@@ -241,6 +242,16 @@ def model(learning_rate,num_epochs,mini_size,break_t,break_v,pt_out,hole_pera,va
     #builder = tf.saved_model.builder.SavedModelBuilder('./SavedModel/')
 
     init = tf.global_variables_initializer()
+    # builder = tf.saved_model.builder.SavedModelBuilder(logdir_m)
+    # # inputs = {'input_x': tf.saved_model.utils.build_tensor_info(pix_gt),
+    # #             'input_h': tf.saved_model.utils.build_tensor_info(handle)}
+    # inputs = {'input_x': tf.saved_model.utils.build_tensor_info(pix_gt),
+    #             'iter': tf.saved_model.utils.build_tensor_info(saveable_obj)}
+    #
+    # outputs = {'output1' : tf.saved_model.utils.build_tensor_info(out1),
+    #             'output2' : tf.saved_model.utils.build_tensor_info(out2),
+    #             'output3' : tf.saved_model.utils.build_tensor_info(out3)}
+    # signature = tf.saved_model.signature_def_utils.build_signature_def(inputs, outputs, 'test_sig_name')
 
     sess = tf.Session()
 
@@ -248,10 +259,11 @@ def model(learning_rate,num_epochs,mini_size,break_t,break_v,pt_out,hole_pera,va
     #saver.restore(sess,('/media/antor/Files/main_projects/gitlab/Landsat7_image_inpainting/tf_models/run-20181009225849/my_model.ckpt'))
 
     #sess.run(iterator.initializer,feed_dict={filenames:"/media/antor/Files/ML/tfrecord/slc_inpainting/train.tfrecords"})
-    sess.run(training_iterator.initializer)
-    sess.run(validation_iterator.initializer)
-    training_handle = sess.run(training_iterator.string_handle())
-    validation_handle = sess.run(validation_iterator.string_handle())
+    # sess.run(training_iterator.initializer)
+    # sess.run(validation_iterator.initializer)
+    # training_handle = sess.run(training_iterator.string_handle())
+    # validation_handle = sess.run(validation_iterator.string_handle())
+    sess.run(iterator.initializer)
 
     mini_cost = 0.0
     counter = 1
@@ -260,69 +272,70 @@ def model(learning_rate,num_epochs,mini_size,break_t,break_v,pt_out,hole_pera,va
     num_mini_val = int(m_val_size/mini_size)
     while True:
         try:
-            _ , temp_cost = sess.run([optimizer,cost], feed_dict={handle : training_handle})
+            # _ , temp_cost = sess.run([optimizer,cost], feed_dict={handle : training_handle})
+            _ , temp_cost = sess.run([optimizer,cost])
 
             #mini_cost += temp_cost/num_mini
             mini_cost += temp_cost/pt_out
             epoch_cost += temp_cost/num_mini
 
-            if counter%50 == 0:
-                merge_sum = tf.summary.merge_all()
-                #merge_sum = tf.summary.merge(tf.get_collection(tf.GraphKeys.SUMMARIES, train_scope))
-                s = sess.run(merge_sum,feed_dict={handle : training_handle})
-                file_writer.add_summary(s,counter)
+            # if counter%50 == 0:
+            #     merge_sum = tf.summary.merge_all()
+            #     #merge_sum = tf.summary.merge(tf.get_collection(tf.GraphKeys.SUMMARIES, train_scope))
+            #     s = sess.run(merge_sum,feed_dict={handle : training_handle})
+            #     file_writer.add_summary(s,counter)
             if counter%pt_out==0:
                 print("mini batch cost of batch " + str(counter) + " is : " + str(mini_cost))
                 mini_cost =0.0
 
 
-            if counter%num_mini==0:
-                print("cost after epoch " + str(counter/num_mini) + ": " + str(epoch_cost))
-
-                #saver.save(sess,logdir_m+"my_model.ckpt")
-                # s = sess.run(merge_sum)
-                # file_writer.add_summary(s,counter)
-                #file_writer_t.add_summary(s_t,counter)
-                #file_writer_t.flush()
-                counter_v    = 1
-                epoch_cost_v = 0.0
-                while True:
-                    try:
-                        #if counter_v%36==0:
-                        #    tf.get_default_graph().clear_collection('total_accuracy')
-                        temp_cost_v = sess.run(cost,feed_dict={handle : validation_handle})
-                        epoch_cost_v += temp_cost_v/num_mini_val
-
-
-
-                        if counter_v%num_mini_val==0:
-                            print("val cost at epoch  " + str(epoch) + ": " + str(epoch_cost_v))
-                            merge_sum_v = tf.summary.merge_all()
-                            #merge_sum = tf.summary.merge(tf.get_collection(tf.GraphKeys.SUMMARIES, train_scope))
-                            s_v = sess.run(merge_sum_v,feed_dict={handle : validation_handle})
-                            file_writer_v.add_summary(s_v,counter)
-
-                            # with tf.name_scope("cost_val_epoch") as scope:
-                            #     cost_v = tf.summary.scalar("loss_val", epoch_cost_v)
-                            #
-                            # merge_val = tf.summary.merge([cost_v])
-                            # s_v = sess.run(merge_val,feed_dict={handle : validation_handle})
-                            # file_writer.add_summary(s_v,counter)
-
-                            epoch_cost_v = 0.0
-                            #s_v = sess.run(merge_sum, feed_dict={handle : validation_handle, decision:False})
-                            #file_writer_v.add_summary(s_v,counter)
-                            #file_writer_v.flush()
-                            #s = sess.run(merge_sum)
-                            #file_writer.add_summary(s,counter)
-
-                            break
-                        counter_v+=1
-                    except tf.errors.OutOfRangeError:
-                        #tf.summary.scalar('dev_epoch_cost',epoch_cost_v)
-                        break
-                epoch_cost =0.0
-                epoch+=1
+            # if counter%num_mini==0:
+            #     print("cost after epoch " + str(counter/num_mini) + ": " + str(epoch_cost))
+            #
+            #     #saver.save(sess,logdir_m+"my_model.ckpt")
+            #     # s = sess.run(merge_sum)
+            #     # file_writer.add_summary(s,counter)
+            #     #file_writer_t.add_summary(s_t,counter)
+            #     #file_writer_t.flush()
+            #     counter_v    = 1
+            #     epoch_cost_v = 0.0
+            #     while True:
+            #         try:
+            #             #if counter_v%36==0:
+            #             #    tf.get_default_graph().clear_collection('total_accuracy')
+            #             temp_cost_v = sess.run(cost,feed_dict={handle : validation_handle})
+            #             epoch_cost_v += temp_cost_v/num_mini_val
+            #
+            #
+            #
+            #             if counter_v%num_mini_val==0:
+            #                 print("val cost at epoch  " + str(epoch) + ": " + str(epoch_cost_v))
+            #                 # merge_sum_v = tf.summary.merge_all()
+            #                 # #merge_sum = tf.summary.merge(tf.get_collection(tf.GraphKeys.SUMMARIES, train_scope))
+            #                 # s_v = sess.run(merge_sum_v,feed_dict={handle : validation_handle})
+            #                 # file_writer_v.add_summary(s_v,counter)
+            #
+            #                 # with tf.name_scope("cost_val_epoch") as scope:
+            #                 #     cost_v = tf.summary.scalar("loss_val", epoch_cost_v)
+            #                 #
+            #                 # merge_val = tf.summary.merge([cost_v])
+            #                 # s_v = sess.run(merge_val,feed_dict={handle : validation_handle})
+            #                 # file_writer.add_summary(s_v,counter)
+            #
+            #                 epoch_cost_v = 0.0
+            #                 #s_v = sess.run(merge_sum, feed_dict={handle : validation_handle, decision:False})
+            #                 #file_writer_v.add_summary(s_v,counter)
+            #                 #file_writer_v.flush()
+            #                 #s = sess.run(merge_sum)
+            #                 #file_writer.add_summary(s,counter)
+            #
+            #                 break
+            #             counter_v+=1
+            #         except tf.errors.OutOfRangeError:
+            #             #tf.summary.scalar('dev_epoch_cost',epoch_cost_v)
+            #             break
+                # epoch_cost =0.0
+                # epoch+=1
 
             #print("cost after epoch " + str(counter/num_mini) + ": " + str(mini_cost))
 
@@ -340,15 +353,18 @@ def model(learning_rate,num_epochs,mini_size,break_t,break_v,pt_out,hole_pera,va
 
             counter = counter + 1
         except tf.errors.OutOfRangeError:
-            builder = tf.saved_model.builder.SavedModelBuilder(logdir_m)
-            inputs = {'input_x': tf.saved_model.utils.build_tensor_info(pix_gt)}
-            outputs = {'output1' : tf.saved_model.utils.build_tensor_info(out1),
-                        'output2' : tf.saved_model.utils.build_tensor_info(out2),
-                        'output3' : tf.saved_model.utils.build_tensor_info(out3)}
-            signature = tf.saved_model.signature_def_utils.build_signature_def(inputs, outputs, 'test_sig_name')
-            builder.add_meta_graph_and_variables(sess, ['test_saved_model'], {'test_signature':signature})
-            builder.save()
+            # builder = tf.saved_model.builder.SavedModelBuilder(logdir_m)
+            # inputs = {'input_x': tf.saved_model.utils.build_tensor_info(pix_gt),
+            #             'input_h': tf.saved_model.utils.build_tensor_info(handle)}
+            #
+            # outputs = {'output1' : tf.saved_model.utils.build_tensor_info(out1),
+            #             'output2' : tf.saved_model.utils.build_tensor_info(out2),
+            #             'output3' : tf.saved_model.utils.build_tensor_info(out3)}
+            # signature = tf.saved_model.signature_def_utils.build_signature_def(inputs, outputs, 'test_sig_name')
+            # builder.add_meta_graph_and_variables(sess, ['test_saved_model'], {'test_signature':signature})
+            # builder.save()
 
+            tf.saved_model.simple_save(sess,logdir_m,inputs={"x": pix_gt},outputs={"o1": out1 ,"o2" : out2, "o3" : out3})
             break
 
                #for tensorboard
