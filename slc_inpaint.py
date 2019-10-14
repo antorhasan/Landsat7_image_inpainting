@@ -149,8 +149,9 @@ def partial_conv(pixel, mask,is_training, kernel_size, filter_numbers, stride, b
             up_pixel = tf.nn.leaky_relu(normalized_out, name="leaky_relu")
         elif nonlinearity=="none":
             #up_pixel = normalized_out
-            up_pixel = tf.sigmoid(normalized_out)
+            #up_pixel = tf.sigmoid(normalized_out)
             #up_pixel = tf.nn.relu(normalized_out, name="relu")
+            up_pixel = tf.nn.tanh(normalized_out, name="tanh")
         elif nonlinearity=="elu":
             up_pixel = tf.keras.activations.elu(normalized_out)
 
@@ -312,9 +313,10 @@ def model(learning_rate,num_epochs,mini_size,break_t,break_v,pt_out,hole_pera,va
 
     dataset = tf.data.TFRecordDataset(filenames)
     dataset = dataset.map(_parse_function)
-    dataset = dataset.repeat(num_epochs)
-    dataset = dataset.shuffle(5000)
+    dataset = dataset.shuffle(3000)
     dataset = dataset.batch(mini_size)
+    dataset = dataset.repeat(num_epochs)
+
     iterator = dataset.make_initializable_iterator(shared_name="iter")
     #tf.add_to_collection('iterator', iterator)
     pix_gt, mask_in = iterator.get_next()
@@ -355,7 +357,7 @@ def model(learning_rate,num_epochs,mini_size,break_t,break_v,pt_out,hole_pera,va
     sess.run(init)
     #saver.restore(sess,('/media/antor/Files/main_projects/gitlab/Landsat7_image_inpainting/tf_models/run-20181009225849/my_model.ckpt'))
 
-    sess.run(iterator.initializer,feed_dict={filenames:"/media/antor/Files/ML/Papers/train_in1.tfrecords"})
+    sess.run(iterator.initializer,feed_dict={filenames:"/media/antor/Files/ML/tfrecord/slc_inpainting/train.tfrecords"})
 
     mini_cost = 0.0
     counter = 1
@@ -372,13 +374,13 @@ def model(learning_rate,num_epochs,mini_size,break_t,break_v,pt_out,hole_pera,va
             mini_cost += temp_cost/pt_out
             epoch_cost += temp_cost/num_mini
 
-            if counter%40 == 0:
+            if counter%50 == 0:
                 s = sess.run(merge_sum)
                 file_writer.add_summary(s,counter)
 
             if counter%num_mini==0:
                 print("cost after epoch " + str(counter/num_mini) + ": " + str(epoch_cost))
-                saver.save(sess,logdir_m+"my_model.ckpt")
+                #saver.save(sess,logdir_m+"my_model.ckpt")
                 epoch_cost =0.0
                 epoch+=1
 
@@ -408,7 +410,7 @@ def model(learning_rate,num_epochs,mini_size,break_t,break_v,pt_out,hole_pera,va
 
     counter_val = 1
 
-    sess.run(iterator.initializer,feed_dict={filenames:"/media/antor/Files/ML/Papers/val_in1.tfrecords"})
+    sess.run(iterator.initializer,feed_dict={filenames:"/media/antor/Files/ML/tfrecord/slc_inpainting/val.tfrecords"})
     #sess.run(iterator_val.initializer,feed_dict={filenames_val:"/media/antor/Files/ML/Papers/val_mfix.tfrecords"})
 
     mini_cost_val = 0.0
@@ -449,55 +451,54 @@ def model(learning_rate,num_epochs,mini_size,break_t,break_v,pt_out,hole_pera,va
     #now_m = datetime.utcnow().strftime("%Y%m%d%H%M%S")    #for tensorboard
     #root_logdir_m = "tf_models"
     #logdir_m = "{}/run-{}/".format(root_logdir_m, now_m)
-    saver.save(sess,logdir_m+"my_model.ckpt")
+    #saver.save(sess,logdir_m+"my_model.ckpt")
 
     sess.close()
 
 
-'''from tensorflow.python.framework import ops
-
-f = np.random.uniform(-5,0,6)
-i = 10**f
-#print(f)
-print(i)
-b = [2,4,8,16]
-for j in i:
-    for k in b:
-        print(j,k)
-        model(learning_rate=j,num_epochs=1,mini_size=k,break_t=1500,break_v=150,pt_out=20,hole_pera=6.0,valid_pera=1.0)
-        ops.reset_default_graph() '''
+# from tensorflow.python.framework import ops
+#
+# f = np.random.uniform(-5,0,6)
+# i = 10**f
+# #print(f)
+# print(i)
+# b = [2,4,8,16]
+# for j in i:
+#     for k in b:
+#         print(j,k)
+#         model(learning_rate=j,num_epochs=1,mini_size=k,break_t=1500,break_v=150,pt_out=20,hole_pera=6.0,valid_pera=1.0)
+#         ops.reset_default_graph()
 
 
 #i=.05
-from tensorflow.python.framework import ops
-#import random
-h = np.random.randint(3,5,size=4)
-#v = np.random.randint(1,15,size=6)
-#random.shuffle(h)
-#random.shuffle(v)
+# from tensorflow.python.framework import ops
+# #import random
+# h = np.random.randint(3,5,size=4)
+# #v = np.random.randint(1,15,size=6)
+# #random.shuffle(h)
+# #random.shuffle(v)
+#
+# f = np.random.uniform(np.log10(.7),np.log10(.98),10)
+# c = np.random.uniform(np.log10(.0001),np.log10(.01),3)
+#
+# #f = np.random.uniform(3,5,4)
+# #f = [100,1000,50000,500]
+# i = 10**f
+# j = 10**c
+# v = [8,12,16]
+# #i= [.07,.01,.007,.099999,.001]
+# #i = np.random.uniform(.01039,.04,5)
+# #print(i)
+# print(v)
+#
+# for l in v:
+#
+#     #print(k)
+#     print(l)
+#
+#     model(learning_rate=.00960955,num_epochs=2,mini_size=l,break_t=7000,break_v=700,pt_out=20,hole_pera=6.0,
+#       valid_pera=1.0,decay_s=538.3,decay_rate=.96,fil_num=32)
+#     ops.reset_default_graph()
 
-f = np.random.uniform(np.log10(.7),np.log10(.98),10)
-c = np.random.uniform(np.log10(.0001),np.log10(.01),3)
-
-#f = np.random.uniform(3,5,4)
-#f = [100,1000,50000,500]
-i = 10**f
-j = 10**c
-v = [8,12,16]
-#i= [.07,.01,.007,.099999,.001]
-#i = np.random.uniform(.01039,.04,5)
-#print(i)
-print(v)
-
-for l in v:
-
-    #print(k)
-    print(l)
-
-    model(learning_rate=.00960955,num_epochs=2,mini_size=l,break_t=7000,break_v=700,pt_out=20,hole_pera=6.0,
-      valid_pera=1.0,decay_s=538.3,decay_rate=.96,fil_num=32)
-    ops.reset_default_graph()
-
-
-#model(learning_rate=.00960955,num_epochs=12,mini_size=16,break_t=7000,break_v=700,pt_out=20,hole_pera=6.0,
-#      valid_pera=1.0,decay_s=538.3,decay_rate=.96,fil_num=32)
+model(learning_rate=.00960955,num_epochs=1,mini_size=16,break_t=7000,break_v=700,pt_out=20,hole_pera=6.0,
+     valid_pera=1.0,decay_s=538.3,decay_rate=.96,fil_num=32)

@@ -1,3 +1,4 @@
 tf_logs/
 tf_models/
 SavedModel/
+tf_vals/
