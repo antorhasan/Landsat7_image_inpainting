@@ -35,6 +35,7 @@
 </p>
 
 </b>
+
 **Conclusions :**
 There haven’t been many works on satellite image inpainting. Most of the works focus on inpainting of general images or scenarios that are found in our everyday lives. The introduction of partial convolution layers and automatic mask update scheme implementation on satellite image data gaps inpainting problem was explored. The trained inpainting model could robustly handle holes of any shape, size, location, or distance from the image borders. Further, the performance did not deteriorate catastrophically as holes increased in size. 
 
