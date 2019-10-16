@@ -6,4 +6,33 @@
 
 **Results :**  
 
+![alt text](https://github.com/antorhasan/landsat7_image_inpainting/blob/master/pngs/original1.png)
 
+<p align="center">
+  <b>Original Image with SLC-off Data Gap</b><br>
+</p>
+
+![alt text](https://github.com/antorhasan/landsat7_image_inpainting/blob/master/pngs/fixed1.png)
+
+<p align="center">
+  <b>Model Output</b><br>
+</p>
+
+<br/>
+<br/>
+<br/>
+
+![alt text](https://github.com/antorhasan/landsat7_image_inpainting/blob/master/pngs/original2.png)
+
+<p align="center">
+  <b>Original Image with SLC-off Data Gap</b>
+</p>
+
+![alt text](https://github.com/antorhasan/landsat7_image_inpainting/blob/master/pngs/fixed2.png)
+
+<p align="center">
+  <b>Model Output</b><br>
+</p>
+
+</b>
+**
