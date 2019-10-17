@@ -5,13 +5,16 @@
 <br/>
 
 **Methods :** For this Image inpainting problem partial convolution layers with U-net like model architecture was evaluated. The resulting inpainting network could take 256×256 resolution greyscale NBRT Landsat 7 SLC-off satellite images taken over the Jamuna River as input and produce an inpainted image where there would be no data gaps. Weighted L1 as loss function, He normal initialization for weights and Adam as optimizer were used. 
+
 <br/>
+
 **Results :**  
 
 ![alt text](https://github.com/antorhasan/landsat7_image_inpainting/blob/master/pngs/original1.png)
 
 <p align="center">
   <b>Original Image with SLC-off Data Gap</b><br>
+  <br>
 </p>
 
 ![alt text](https://github.com/antorhasan/landsat7_image_inpainting/blob/master/pngs/fixed1.png)
@@ -20,14 +23,15 @@
   <b>Model Output</b><br>
 </p>
 
-<br/>
-<br/>
-<br/>
+<br>
+<br>
+<br>
 
 ![alt text](https://github.com/antorhasan/landsat7_image_inpainting/blob/master/pngs/original2.png)
 
 <p align="center">
-  <b>Original Image with SLC-off Data Gap</b>
+  <b>Original Image with SLC-off Data Gap</b><br>
+  <br/>
 </p>
 
 ![alt text](https://github.com/antorhasan/landsat7_image_inpainting/blob/master/pngs/fixed2.png)
@@ -36,7 +40,7 @@
   <b>Model Output</b><br>
 </p>
 
-</b>
+<br/>
 
 **Conclusions :**
 There haven’t been many works on satellite image inpainting. Most of the works focus on inpainting of general images or scenarios that are found in our everyday lives. The introduction of partial convolution layers and automatic mask update scheme implementation on satellite image data gaps inpainting problem was explored. The trained inpainting model could robustly handle holes of any shape, size, location, or distance from the image borders. Further, the performance did not deteriorate catastrophically as holes increased in size. 
